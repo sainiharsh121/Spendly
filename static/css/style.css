@@ -624,6 +624,61 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ------------------------------------------------------------------ */
+/* Video modal                                                         */
+/* ------------------------------------------------------------------ */
+
+.modal {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: rgba(15, 15, 15, 0.75);
+}
+
+.modal[hidden] { display: none; }
+
+.modal-dialog {
+    position: relative;
+    width: 100%;
+    max-width: 900px;
+}
+
+.modal-video {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: var(--ink);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.modal-video iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+.modal-close {
+    position: absolute;
+    top: -2.75rem;
+    right: 0;
+    background: none;
+    border: none;
+    color: var(--paper);
+    font-size: 2rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    transition: color 0.2s;
+}
+
+.modal-close:hover { color: var(--accent-2); }
+
+/* ------------------------------------------------------------------ */
 /* Responsive                                                          */
 /* ------------------------------------------------------------------ */
 
