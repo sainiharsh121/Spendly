@@ -1,4 +1,7 @@
-from flask import Flask, render_template
+import sqlite3
+
+from flask import Flask, redirect, render_template, request, url_for
+from werkzeug.security import generate_password_hash
 
 from database.db import get_db, init_db, seed_db
 
@@ -18,14 +21,59 @@ def landing():
     return render_template("landing.html")
 
 
-@app.route("/register")
+DUPLICATE_EMAIL_ERROR = "An account with this email already exists."
+
+
+def _validate_registration(name, email, password):
+    """Return an error message for invalid registration input, else None."""
+    if not name:
+        return "Please enter your name."
+    local, sep, domain = email.partition("@")
+    if not (local and sep and domain):
+        return "Please enter a valid email address."
+    if len(password) < 8:
+        return "Password must be at least 8 characters."
+    return None
+
+
+@app.route("/register", methods=["GET", "POST"])
 def register():
-    return render_template("register.html")
+    if request.method == "GET":
+        return render_template("register.html")
+
+    name = request.form.get("name", "").strip()
+    email = request.form.get("email", "").strip().lower()
+    password = request.form.get("password", "")
+
+    def fail(message):
+        return render_template("register.html", error=message, name=name, email=email)
+
+    error = _validate_registration(name, email, password)
+    if error:
+        return fail(error)
+
+    conn = get_db()
+    try:
+        if conn.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone():
+            return fail(DUPLICATE_EMAIL_ERROR)
+        try:
+            conn.execute(
+                "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
+                (name, email, generate_password_hash(password)),
+            )
+            conn.commit()
+        except sqlite3.IntegrityError:
+            conn.rollback()
+            return fail(DUPLICATE_EMAIL_ERROR)
+    finally:
+        conn.close()
+
+    return redirect(url_for("login", registered=1))
 
 
 @app.route("/login")
 def login():
-    return render_template("login.html")
+    return render_template("login.html", registered=request.args.get("registered"))
 
 
 @app.route("/terms")
