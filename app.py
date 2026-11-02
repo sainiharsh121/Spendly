@@ -1,11 +1,14 @@
+import os
 import sqlite3
 
-from flask import Flask, redirect, render_template, request, url_for
-from werkzeug.security import generate_password_hash
+from flask import Flask, redirect, render_template, request, session, url_for
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from database.db import get_db, init_db, seed_db
 
 app = Flask(__name__)
+# Development-only fallback; set SECRET_KEY in the environment for real use.
+app.secret_key = os.environ.get("SECRET_KEY", "dev-only-insecure-secret-key")
 
 with app.app_context():
     init_db()
@@ -15,6 +18,27 @@ with app.app_context():
 # ------------------------------------------------------------------ #
 # Routes                                                              #
 # ------------------------------------------------------------------ #
+
+def _current_user():
+    """Return the logged-in user's row, or None. Clears a stale session."""
+    user_id = session.get("user_id")
+    if user_id is None:
+        return None
+    conn = get_db()
+    try:
+        user = conn.execute("SELECT id, name FROM users WHERE id = ?", (user_id,)).fetchone()
+    finally:
+        conn.close()
+    if user is None:
+        session.clear()
+    return user
+
+
+@app.context_processor
+def inject_current_user():
+    user = _current_user()
+    return {"current_user_name": user["name"] if user else None}
+
 
 @app.route("/")
 def landing():
@@ -38,6 +62,8 @@ def _validate_registration(name, email, password):
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
+    if _current_user():
+        return redirect(url_for("profile"))
     if request.method == "GET":
         return render_template("register.html")
 
@@ -71,9 +97,39 @@ def register():
     return redirect(url_for("login", registered=1))
 
 
-@app.route("/login")
+LOGIN_ERROR = "Invalid email or password."
+
+
+@app.route("/login", methods=["GET", "POST"])
 def login():
-    return render_template("login.html", registered=request.args.get("registered"))
+    if _current_user():
+        return redirect(url_for("profile"))
+    if request.method == "GET":
+        return render_template("login.html", registered=request.args.get("registered"))
+
+    email = request.form.get("email", "").strip().lower()
+    password = request.form.get("password", "")
+
+    def fail(message):
+        return render_template("login.html", error=message, email=email)
+
+    if not email or not password:
+        return fail("Please enter your email and password.")
+
+    conn = get_db()
+    try:
+        user = conn.execute(
+            "SELECT id, password_hash FROM users WHERE email = ?", (email,)
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if user is None or not check_password_hash(user["password_hash"], password):
+        return fail(LOGIN_ERROR)
+
+    session.clear()
+    session["user_id"] = user["id"]
+    return redirect(url_for("profile"))
 
 
 @app.route("/terms")
@@ -92,7 +148,8 @@ def privacy():
 
 @app.route("/logout")
 def logout():
-    return "Logout — coming in Step 3"
+    session.clear()
+    return redirect(url_for("landing"))
 
 
 @app.route("/profile")
