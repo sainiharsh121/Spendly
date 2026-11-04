@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Profile — Spendly{% endblock %}
+
+{% block content %}
+<section class="profile">
+    <div class="profile-inner">
+
+        <div class="profile-header">
+            <div class="avatar" aria-hidden="true">{{ user.name[:1]|upper }}</div>
+            <div class="profile-id">
+                <h1 class="profile-name">{{ user.name }}</h1>
+                <p class="profile-email">{{ user.email }}</p>
+                <p class="profile-since">Member since {{ user.created_at|month_year }}</p>
+            </div>
+            <a href="{{ url_for('add_expense') }}" class="btn-primary">Add expense</a>
+        </div>
+
+        <div class="stat-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total spent</div>
+                <div class="stat-value">{{ total|rupee }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Expenses</div>
+                <div class="stat-value">{{ count }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">This month</div>
+                <div class="stat-value">{{ month_total|rupee }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Top category</div>
+                <div class="stat-value">{{ top_category or "—" }}</div>
+            </div>
+        </div>
+
+        {% if count %}
+        <div class="profile-panel">
+            <h2 class="panel-title">Spending by category</h2>
+            {% for c in categories %}
+            <div class="breakdown-row">
+                <span class="breakdown-name">{{ c.category }}</span>
+                <div class="cat-bar-track">
+                    <div class="cat-bar-fill cat-{{ c.category|lower }}" style="width: {{ c.pct }}%"></div>
+                </div>
+                <span class="breakdown-figures"><strong>{{ c.total|rupee }}</strong> · {{ c.pct }}%</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="profile-panel">
+            <h2 class="panel-title">Recent expenses</h2>
+            <div class="table-scroll">
+                <table class="expense-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Category</th>
+                            <th class="num">Amount</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in recent %}
+                        <tr>
+                            <td class="date-cell">{{ e.date }}</td>
+                            <td>{{ e.description or "—" }}</td>
+                            <td><span class="cat-badge cat-{{ e.category|lower }}">{{ e.category }}</span></td>
+                            <td class="num">{{ e.amount|rupee }}</td>
+                            <td class="row-actions">
+                                <a href="{{ url_for('edit_expense', id=e.id) }}">Edit</a>
+                                <a href="{{ url_for('delete_expense', id=e.id) }}" class="row-delete">Delete</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>No expenses yet. Once you add some, your spending breakdown will show up here.</p>
+            <a href="{{ url_for('add_expense') }}" class="btn-primary">Add your first expense</a>
+        </div>
+        {% endif %}
+
+    </div>
+</section>
+{% endblock %}
