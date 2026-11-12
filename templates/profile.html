@@ -20,6 +20,24 @@
         <div class="auth-success">Expense updated.</div>
         {% endif %}
 
+        {% for message in get_flashed_messages() %}
+        <div class="auth-error">{{ message }}</div>
+        {% endfor %}
+
+        <div class="filter-bar">
+            <div class="filter-presets">
+                {% for p in presets %}
+                <a href="{{ p.url }}" class="filter-chip{% if p.active %} active{% endif %}">{{ p.label }}</a>
+                {% endfor %}
+            </div>
+            <form method="GET" action="{{ url_for('profile') }}" class="filter-form{% if active_preset == 'custom' %} active{% endif %}">
+                <input type="date" name="date_from" class="form-input" value="{{ date_from or '' }}" aria-label="From date" required>
+                <span class="filter-sep">to</span>
+                <input type="date" name="date_to" class="form-input" value="{{ date_to or '' }}" aria-label="To date" required>
+                <button type="submit" class="btn-apply">Apply</button>
+            </form>
+        </div>
+
         <div class="stat-grid">
             <div class="stat-card">
                 <div class="stat-label">Total spent</div>
@@ -85,8 +103,12 @@
         </div>
         {% else %}
         <div class="empty-state">
+            {% if filtered %}
+            <p>No expenses in this range.</p>
+            {% else %}
             <p>No expenses yet. Once you add some, your spending breakdown will show up here.</p>
             <a href="{{ url_for('add_expense') }}" class="btn-primary">Add your first expense</a>
+            {% endif %}
         </div>
         {% endif %}
 

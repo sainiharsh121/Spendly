@@ -940,6 +940,71 @@ select.form-input {
 
 .empty-state p { margin-bottom: 1.25rem; }
 
+/* Profile date filter */
+.filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1rem 1.25rem;
+}
+
+.filter-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.filter-chip {
+    padding: 0.4rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    background: var(--paper);
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.filter-chip:hover { border-color: var(--accent); color: var(--accent); }
+
+.filter-chip.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--paper);
+}
+
+.filter-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.filter-form .form-input { width: auto; padding: 0.4rem 0.6rem; font-size: 0.85rem; }
+
+.filter-form.active .form-input { border-color: var(--accent); }
+
+.filter-sep { font-size: 0.85rem; color: var(--ink-muted); }
+
+.btn-apply {
+    padding: 0.45rem 1rem;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--ink);
+    color: var(--paper);
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-apply:hover { background: var(--accent); }
+
 /* ------------------------------------------------------------------ */
 /* Responsive                                                          */
 /* ------------------------------------------------------------------ */
@@ -958,6 +1023,7 @@ select.form-input {
     .profile-header { flex-direction: column; align-items: flex-start; padding: 1.5rem; }
     .stat-grid { grid-template-columns: 1fr; }
     .form-row { grid-template-columns: 1fr; gap: 0; }
+    .filter-bar { flex-direction: column; align-items: flex-start; }
     .profile-panel { padding: 1.25rem; }
     .breakdown-row { grid-template-columns: 1fr; gap: 0.35rem; }
     .breakdown-figures { text-align: left; }

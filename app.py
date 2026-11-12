@@ -1,9 +1,19 @@
+import calendar
 import os
 import re
 import sqlite3
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
-from flask import Flask, abort, redirect, render_template, request, session, url_for
+from flask import (
+    Flask,
+    abort,
+    flash,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from database import queries
@@ -188,16 +198,86 @@ def _profile_data(user_id, date_from=None, date_to=None):
     }
 
 
+def _parse_date(value):
+    """Return the value as a zero-padded YYYY-MM-DD string, or None if invalid."""
+    try:
+        return datetime.strptime(value or "", "%Y-%m-%d").date().isoformat()
+    except ValueError:
+        return None
+
+
+def _months_ago(day, months):
+    """The date `months` calendar months before `day`, clamping the day number."""
+    index = day.year * 12 + day.month - 1 - months
+    year, month = divmod(index, 12)
+    month += 1
+    last = calendar.monthrange(year, month)[1]
+    return date(year, month, min(day.day, last))
+
+
+PRESETS = [
+    ("this_month", "This Month"),
+    ("last_3", "Last 3 Months"),
+    ("last_6", "Last 6 Months"),
+    ("all", "All Time"),
+]
+
+
+def _preset_ranges(today):
+    """Map preset key -> (date_from, date_to) ISO strings; All Time is (None, None)."""
+    last_day = calendar.monthrange(today.year, today.month)[1]
+    return {
+        "this_month": (
+            today.replace(day=1).isoformat(),
+            today.replace(day=last_day).isoformat(),
+        ),
+        "last_3": (_months_ago(today, 3).isoformat(), today.isoformat()),
+        "last_6": (_months_ago(today, 6).isoformat(), today.isoformat()),
+        "all": (None, None),
+    }
+
+
 @app.route("/profile")
 def profile():
     user = _current_user()
     if user is None:
         return redirect(url_for("login"))
+
+    date_from = _parse_date(request.args.get("date_from"))
+    date_to = _parse_date(request.args.get("date_to"))
+    if date_from and date_to and date_from > date_to:
+        flash("Start date must be before end date.")
+        date_from = date_to = None
+    if not (date_from and date_to):
+        date_from = date_to = None
+
+    ranges = _preset_ranges(date.today())
+    active_preset = next(
+        (key for key, rng in ranges.items() if rng == (date_from, date_to)), "custom"
+    )
+    presets = []
+    for key, label in PRESETS:
+        start, end = ranges[key]
+        params = {"date_from": start, "date_to": end} if start else {}
+        presets.append(
+            {
+                "key": key,
+                "label": label,
+                "url": url_for("profile", **params),
+                "active": key == active_preset,
+            }
+        )
+
     return render_template(
         "profile.html",
         user=user,
         updated=request.args.get("updated"),
-        **_profile_data(user["id"]),
+        presets=presets,
+        active_preset=active_preset,
+        date_from=date_from,
+        date_to=date_to,
+        filtered=bool(date_from),
+        **_profile_data(user["id"], date_from, date_to),
     )
 
 
