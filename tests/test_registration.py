@@ -44,7 +44,8 @@ def test_valid_registration_creates_hashed_user_and_redirects(client):
     conn = db.get_db()
     try:
         row = conn.execute(
-            "SELECT name, password_hash FROM users WHERE email = ?", ("asha@example.com",)
+            "SELECT name, password_hash FROM users WHERE email = ?",
+            ("asha@example.com",),
         ).fetchone()
     finally:
         conn.close()

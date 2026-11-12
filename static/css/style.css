@@ -550,6 +550,27 @@ a { color: inherit; text-decoration: none; }
 .auth-switch a:hover { text-decoration: underline; }
 
 /* ------------------------------------------------------------------ */
+/* Expense form                                                        */
+/* ------------------------------------------------------------------ */
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.form-optional {
+    font-weight: 400;
+    color: var(--ink-faint);
+}
+
+select.form-input {
+    cursor: pointer;
+}
+
+.profile-inner > .auth-success { margin-bottom: 0; }
+
+/* ------------------------------------------------------------------ */
 /* Legal pages                                                         */
 /* ------------------------------------------------------------------ */
 
@@ -936,6 +957,7 @@ a { color: inherit; text-decoration: none; }
     .profile { padding: 1.5rem 1rem 3rem; }
     .profile-header { flex-direction: column; align-items: flex-start; padding: 1.5rem; }
     .stat-grid { grid-template-columns: 1fr; }
+    .form-row { grid-template-columns: 1fr; gap: 0; }
     .profile-panel { padding: 1.25rem; }
     .breakdown-row { grid-template-columns: 1fr; gap: 0.35rem; }
     .breakdown-figures { text-align: left; }

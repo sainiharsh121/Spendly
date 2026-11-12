@@ -1,4 +1,4 @@
-# Spec: Profile Page
+ # Spec: Profile Page
 
 ## Overview
 Replace the `/profile` placeholder string with a real, designed page. A logged-in user lands here after signing in (Steps 2 and 3 both redirect to it), so it is the first screen of the app proper. The page shows who the user is (name, email, member-since), a row of summary stats computed from their expenses (total spent, number of expenses, this month's spend, top category), a category breakdown with proportional bars, and a table of their most recent expenses. It is read-only: adding, editing and deleting expenses arrive in Steps 7-9, so the page links to those existing placeholder routes but does not implement them. Visitors who are not logged in are redirected to `/login`.
