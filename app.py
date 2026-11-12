@@ -20,6 +20,7 @@ with app.app_context():
 # Routes                                                              #
 # ------------------------------------------------------------------ #
 
+
 def _current_user():
     """Return the logged-in user's row, or None. Clears a stale session."""
     user_id = session.get("user_id")
@@ -148,6 +149,7 @@ def privacy():
 # ------------------------------------------------------------------ #
 # Placeholder routes — students will implement these                  #
 # ------------------------------------------------------------------ #
+
 
 @app.route("/logout")
 def logout():

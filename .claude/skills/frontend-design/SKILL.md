@@ -23,7 +23,6 @@ Generate output that fits this stack. Do not introduce React, Vue, Tailwind, sha
 If the user's project files are available (e.g. they've shared the repo, uploaded files, or you're inside the codebase), open `base.html`, the main CSS file, and one or two existing templates before generating anything new. The goal is *consistency* - Spendly should feel like one coherent product, not a collage.
 
 Specifically, look for and reuse:
-
 - **Color tokens** (CSS custom properties like `--color-primary`, `--color-bg`, `--color-surface`, etc.)
 - **Spacing scale** (if there's a `--space-1`, `--space-2` pattern, use it)
 - **Font family and type scale**

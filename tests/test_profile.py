@@ -44,7 +44,9 @@ def add_expense(user_id, amount, category, description, day):
 def user_id_for(email):
     conn = db.get_db()
     try:
-        return conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()["id"]
+        return conn.execute(
+            "SELECT id FROM users WHERE email = ?", (email,)
+        ).fetchone()["id"]
     finally:
         conn.close()
 
@@ -88,7 +90,9 @@ def test_category_breakdown_sorted_and_sums_to_100(client):
     cats = data["categories"]
     assert cats[0]["category"] == "Bills"
     assert cats[0]["pct"] == 32.4
-    assert [c["total"] for c in cats] == sorted((c["total"] for c in cats), reverse=True)
+    assert [c["total"] for c in cats] == sorted(
+        (c["total"] for c in cats), reverse=True
+    )
     assert sum(c["pct"] for c in cats) == pytest.approx(100, abs=0.5)
 
 

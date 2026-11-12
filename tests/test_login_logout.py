@@ -28,7 +28,11 @@ def test_demo_login_redirects_to_profile_and_sets_session(client):
 def test_registered_user_can_log_in_with_any_email_case(client):
     client.post(
         "/register",
-        data={"name": "Asha Rao", "email": "asha@example.com", "password": "longenough1"},
+        data={
+            "name": "Asha Rao",
+            "email": "asha@example.com",
+            "password": "longenough1",
+        },
     )
     resp = login(client, email="  ASHA@Example.com ", password="longenough1")
     assert resp.status_code == 302
