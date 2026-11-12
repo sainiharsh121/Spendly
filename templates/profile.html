@@ -16,6 +16,10 @@
             <a href="{{ url_for('add_expense') }}" class="btn-primary">Add expense</a>
         </div>
 
+        {% if updated %}
+        <div class="auth-success">Expense updated.</div>
+        {% endif %}
+
         <div class="stat-grid">
             <div class="stat-card">
                 <div class="stat-label">Total spent</div>

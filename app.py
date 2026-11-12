@@ -1,8 +1,9 @@
 import os
+import re
 import sqlite3
 from datetime import date, datetime, timedelta
 
-from flask import Flask, redirect, render_template, request, session, url_for
+from flask import Flask, abort, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from database.db import get_db, init_db, seed_db
@@ -225,7 +226,12 @@ def profile():
     user = _current_user()
     if user is None:
         return redirect(url_for("login"))
-    return render_template("profile.html", user=user, **_profile_data(user["id"]))
+    return render_template(
+        "profile.html",
+        user=user,
+        updated=request.args.get("updated"),
+        **_profile_data(user["id"]),
+    )
 
 
 @app.route("/expenses/add")
@@ -233,9 +239,98 @@ def add_expense():
     return "Add expense — coming in Step 7"
 
 
-@app.route("/expenses/<int:id>/edit")
+CATEGORIES = [
+    "Food",
+    "Transport",
+    "Bills",
+    "Health",
+    "Entertainment",
+    "Shopping",
+    "Other",
+]
+
+AMOUNT_PATTERN = re.compile(r"\d+(\.\d{1,2})?")
+
+
+def _validate_expense(form):
+    """Validate expense form input. Returns (cleaned, error); one is always None."""
+    amount_raw = form.get("amount", "").strip()
+    if not AMOUNT_PATTERN.fullmatch(amount_raw) or float(amount_raw) <= 0:
+        return None, "Please enter a valid amount greater than 0."
+    amount = round(float(amount_raw), 2)
+
+    category = form.get("category", "")
+    if category not in CATEGORIES:
+        return None, "Please choose a category."
+
+    date_raw = form.get("date", "").strip()
+    try:
+        datetime.strptime(date_raw, "%Y-%m-%d")
+    except ValueError:
+        return None, "Please enter a valid date."
+
+    description = form.get("description", "").strip()
+    if len(description) > 200:
+        return None, "Description must be 200 characters or fewer."
+
+    return {
+        "amount": amount,
+        "category": category,
+        "date": date_raw,
+        "description": description or None,
+    }, None
+
+
+@app.route("/expenses/<int:id>/edit", methods=["GET", "POST"])
 def edit_expense(id):
-    return "Edit expense — coming in Step 8"
+    user = _current_user()
+    if user is None:
+        return redirect(url_for("login"))
+
+    conn = get_db()
+    try:
+        expense = conn.execute(
+            "SELECT id, amount, category, date, description FROM expenses "
+            "WHERE id = ? AND user_id = ?",
+            (id, user["id"]),
+        ).fetchone()
+        if expense is None:
+            abort(404)
+
+        if request.method == "GET":
+            return render_template(
+                "edit_expense.html",
+                expense=expense,
+                form=expense,
+                categories=CATEGORIES,
+            )
+
+        cleaned, error = _validate_expense(request.form)
+        if error:
+            return render_template(
+                "edit_expense.html",
+                expense=expense,
+                form=request.form,
+                error=error,
+                categories=CATEGORIES,
+            )
+
+        conn.execute(
+            "UPDATE expenses SET amount = ?, category = ?, date = ?, description = ? "
+            "WHERE id = ? AND user_id = ?",
+            (
+                cleaned["amount"],
+                cleaned["category"],
+                cleaned["date"],
+                cleaned["description"],
+                id,
+                user["id"],
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return redirect(url_for("profile", updated=1))
 
 
 @app.route("/expenses/<int:id>/delete")
