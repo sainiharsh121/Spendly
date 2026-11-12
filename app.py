@@ -281,11 +281,6 @@ def profile():
     )
 
 
-@app.route("/expenses/add")
-def add_expense():
-    return "Add expense — coming in Step 7"
-
-
 CATEGORIES = [
     "Food",
     "Transport",
@@ -326,6 +321,35 @@ def _validate_expense(form):
         "date": date_raw,
         "description": description or None,
     }, None
+
+
+@app.route("/expenses/add", methods=["GET", "POST"])
+def add_expense():
+    user = _current_user()
+    if user is None:
+        return redirect(url_for("login"))
+
+    if request.method == "GET":
+        return render_template(
+            "add_expense.html",
+            form={"date": date.today().isoformat()},
+            categories=CATEGORIES,
+        )
+
+    cleaned, error = _validate_expense(request.form)
+    if error:
+        return render_template(
+            "add_expense.html", form=request.form, error=error, categories=CATEGORIES
+        )
+
+    queries.insert_expense(
+        user["id"],
+        cleaned["amount"],
+        cleaned["category"],
+        cleaned["date"],
+        cleaned["description"],
+    )
+    return redirect(url_for("profile"))
 
 
 @app.route("/expenses/<int:id>/edit", methods=["GET", "POST"])
