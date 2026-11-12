@@ -1,11 +1,22 @@
+import calendar
 import os
 import re
 import sqlite3
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
-from flask import Flask, abort, redirect, render_template, request, session, url_for
+from flask import (
+    Flask,
+    abort,
+    flash,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from database import queries
 from database.db import get_db, init_db, seed_db
 
 app = Flask(__name__)
@@ -171,53 +182,58 @@ def month_year(value):
         return value
 
 
-def _profile_data(user_id):
+def _profile_data(user_id, date_from=None, date_to=None):
     """Summary stats, category breakdown and recent expenses for one user."""
-    today = date.today()
-    month_start = today.replace(day=1)
-    next_month = (month_start + timedelta(days=32)).replace(day=1)
-
-    conn = get_db()
-    try:
-        totals = conn.execute(
-            "SELECT COALESCE(SUM(amount), 0) AS total, COUNT(*) AS n "
-            "FROM expenses WHERE user_id = ?",
-            (user_id,),
-        ).fetchone()
-        month_total = conn.execute(
-            "SELECT COALESCE(SUM(amount), 0) FROM expenses "
-            "WHERE user_id = ? AND date >= ? AND date < ?",
-            (user_id, month_start.isoformat(), next_month.isoformat()),
-        ).fetchone()[0]
-        category_rows = conn.execute(
-            "SELECT category, SUM(amount) AS total FROM expenses "
-            "WHERE user_id = ? GROUP BY category ORDER BY total DESC",
-            (user_id,),
-        ).fetchall()
-        recent = conn.execute(
-            "SELECT id, date, description, category, amount FROM expenses "
-            "WHERE user_id = ? ORDER BY date DESC, id DESC LIMIT 10",
-            (user_id,),
-        ).fetchall()
-    finally:
-        conn.close()
-
-    grand = totals["total"]
-    categories = [
-        {
-            "category": row["category"],
-            "total": row["total"],
-            "pct": round(row["total"] / grand * 100, 1) if grand else 0,
-        }
-        for row in category_rows
-    ]
+    stats = queries.get_summary_stats(user_id, date_from, date_to)
+    categories = queries.get_category_breakdown(user_id, date_from, date_to)
     return {
-        "total": grand,
-        "count": totals["n"],
-        "month_total": month_total,
+        "total": stats["total_spent"],
+        "count": stats["transaction_count"],
+        "month_total": queries.get_month_total(user_id),
         "top_category": categories[0]["category"] if categories else None,
         "categories": categories,
-        "recent": recent,
+        "recent": queries.get_recent_transactions(
+            user_id, date_from=date_from, date_to=date_to
+        ),
+    }
+
+
+def _parse_date(value):
+    """Return the value as a zero-padded YYYY-MM-DD string, or None if invalid."""
+    try:
+        return datetime.strptime(value or "", "%Y-%m-%d").date().isoformat()
+    except ValueError:
+        return None
+
+
+def _months_ago(day, months):
+    """The date `months` calendar months before `day`, clamping the day number."""
+    index = day.year * 12 + day.month - 1 - months
+    year, month = divmod(index, 12)
+    month += 1
+    last = calendar.monthrange(year, month)[1]
+    return date(year, month, min(day.day, last))
+
+
+PRESETS = [
+    ("this_month", "This Month"),
+    ("last_3", "Last 3 Months"),
+    ("last_6", "Last 6 Months"),
+    ("all", "All Time"),
+]
+
+
+def _preset_ranges(today):
+    """Map preset key -> (date_from, date_to) ISO strings; All Time is (None, None)."""
+    last_day = calendar.monthrange(today.year, today.month)[1]
+    return {
+        "this_month": (
+            today.replace(day=1).isoformat(),
+            today.replace(day=last_day).isoformat(),
+        ),
+        "last_3": (_months_ago(today, 3).isoformat(), today.isoformat()),
+        "last_6": (_months_ago(today, 6).isoformat(), today.isoformat()),
+        "all": (None, None),
     }
 
 
@@ -226,17 +242,43 @@ def profile():
     user = _current_user()
     if user is None:
         return redirect(url_for("login"))
+
+    date_from = _parse_date(request.args.get("date_from"))
+    date_to = _parse_date(request.args.get("date_to"))
+    if date_from and date_to and date_from > date_to:
+        flash("Start date must be before end date.")
+        date_from = date_to = None
+    if not (date_from and date_to):
+        date_from = date_to = None
+
+    ranges = _preset_ranges(date.today())
+    active_preset = next(
+        (key for key, rng in ranges.items() if rng == (date_from, date_to)), "custom"
+    )
+    presets = []
+    for key, label in PRESETS:
+        start, end = ranges[key]
+        params = {"date_from": start, "date_to": end} if start else {}
+        presets.append(
+            {
+                "key": key,
+                "label": label,
+                "url": url_for("profile", **params),
+                "active": key == active_preset,
+            }
+        )
+
     return render_template(
         "profile.html",
         user=user,
         updated=request.args.get("updated"),
-        **_profile_data(user["id"]),
+        presets=presets,
+        active_preset=active_preset,
+        date_from=date_from,
+        date_to=date_to,
+        filtered=bool(date_from),
+        **_profile_data(user["id"], date_from, date_to),
     )
-
-
-@app.route("/expenses/add")
-def add_expense():
-    return "Add expense — coming in Step 7"
 
 
 CATEGORIES = [
@@ -279,6 +321,35 @@ def _validate_expense(form):
         "date": date_raw,
         "description": description or None,
     }, None
+
+
+@app.route("/expenses/add", methods=["GET", "POST"])
+def add_expense():
+    user = _current_user()
+    if user is None:
+        return redirect(url_for("login"))
+
+    if request.method == "GET":
+        return render_template(
+            "add_expense.html",
+            form={"date": date.today().isoformat()},
+            categories=CATEGORIES,
+        )
+
+    cleaned, error = _validate_expense(request.form)
+    if error:
+        return render_template(
+            "add_expense.html", form=request.form, error=error, categories=CATEGORIES
+        )
+
+    queries.insert_expense(
+        user["id"],
+        cleaned["amount"],
+        cleaned["category"],
+        cleaned["date"],
+        cleaned["description"],
+    )
+    return redirect(url_for("profile"))
 
 
 @app.route("/expenses/<int:id>/edit", methods=["GET", "POST"])

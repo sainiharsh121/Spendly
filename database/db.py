@@ -4,7 +4,9 @@ from datetime import date
 
 from werkzeug.security import generate_password_hash
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "spendly.db")
+DB_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "spendly.db"
+)
 
 
 def get_db():
@@ -17,8 +19,7 @@ def get_db():
 def init_db():
     conn = get_db()
     try:
-        conn.executescript(
-            """
+        conn.executescript("""
             CREATE TABLE IF NOT EXISTS users (
                 id            INTEGER PRIMARY KEY AUTOINCREMENT,
                 name          TEXT NOT NULL,
@@ -36,8 +37,7 @@ def init_db():
                 description TEXT,
                 created_at  TEXT NOT NULL DEFAULT (datetime('now'))
             );
-            """
-        )
+            """)
         conn.commit()
     finally:
         conn.close()
