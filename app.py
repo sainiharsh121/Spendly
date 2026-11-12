@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta
 from flask import Flask, abort, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from database import queries
 from database.db import get_db, init_db, seed_db
 
 app = Flask(__name__)
@@ -171,53 +172,19 @@ def month_year(value):
         return value
 
 
-def _profile_data(user_id):
+def _profile_data(user_id, date_from=None, date_to=None):
     """Summary stats, category breakdown and recent expenses for one user."""
-    today = date.today()
-    month_start = today.replace(day=1)
-    next_month = (month_start + timedelta(days=32)).replace(day=1)
-
-    conn = get_db()
-    try:
-        totals = conn.execute(
-            "SELECT COALESCE(SUM(amount), 0) AS total, COUNT(*) AS n "
-            "FROM expenses WHERE user_id = ?",
-            (user_id,),
-        ).fetchone()
-        month_total = conn.execute(
-            "SELECT COALESCE(SUM(amount), 0) FROM expenses "
-            "WHERE user_id = ? AND date >= ? AND date < ?",
-            (user_id, month_start.isoformat(), next_month.isoformat()),
-        ).fetchone()[0]
-        category_rows = conn.execute(
-            "SELECT category, SUM(amount) AS total FROM expenses "
-            "WHERE user_id = ? GROUP BY category ORDER BY total DESC",
-            (user_id,),
-        ).fetchall()
-        recent = conn.execute(
-            "SELECT id, date, description, category, amount FROM expenses "
-            "WHERE user_id = ? ORDER BY date DESC, id DESC LIMIT 10",
-            (user_id,),
-        ).fetchall()
-    finally:
-        conn.close()
-
-    grand = totals["total"]
-    categories = [
-        {
-            "category": row["category"],
-            "total": row["total"],
-            "pct": round(row["total"] / grand * 100, 1) if grand else 0,
-        }
-        for row in category_rows
-    ]
+    stats = queries.get_summary_stats(user_id, date_from, date_to)
+    categories = queries.get_category_breakdown(user_id, date_from, date_to)
     return {
-        "total": grand,
-        "count": totals["n"],
-        "month_total": month_total,
+        "total": stats["total_spent"],
+        "count": stats["transaction_count"],
+        "month_total": queries.get_month_total(user_id),
         "top_category": categories[0]["category"] if categories else None,
         "categories": categories,
-        "recent": recent,
+        "recent": queries.get_recent_transactions(
+            user_id, date_from=date_from, date_to=date_to
+        ),
     }
 
 
