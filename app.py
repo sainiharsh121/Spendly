@@ -323,6 +323,13 @@ def _validate_expense(form):
     }, None
 
 
+@app.route("/analytics")
+def analytics():
+    if _current_user() is None:
+        return redirect(url_for("login"))
+    return render_template("analytics.html")
+
+
 @app.route("/expenses/add", methods=["GET", "POST"])
 def add_expense():
     user = _current_user()
