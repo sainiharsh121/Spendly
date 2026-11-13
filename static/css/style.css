@@ -933,7 +933,21 @@ select.form-input {
 }
 
 .row-actions a:hover { color: var(--accent); }
-.row-actions a.row-delete:hover { color: var(--danger); }
+
+.row-delete-form { display: inline; margin: 0; }
+
+.row-actions button.btn-delete {
+    font: inherit;
+    font-size: 0.85rem;
+    color: var(--ink-muted);
+    margin-left: 0.75rem;
+    padding: 0;
+    background: none;
+    border: 0;
+    cursor: pointer;
+}
+
+.row-actions button.btn-delete:hover { color: var(--danger); }
 
 .empty-state {
     text-align: center;

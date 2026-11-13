@@ -158,4 +158,4 @@ def test_expense_links_point_at_placeholder_routes(client):
     page = client.get("/profile").data
     assert b'href="/expenses/add"' in page
     assert re.search(rb'href="/expenses/\d+/edit"', page)
-    assert re.search(rb'href="/expenses/\d+/delete"', page)
+    assert re.search(rb'<form method="post" action="/expenses/\d+/delete"', page)
